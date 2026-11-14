@@ -9,11 +9,11 @@ namespace Pipit;
 public interface IParser
 {
     /// <summary>
-    /// Parse input and delivers events sequentially to the supplied sink.
+    /// Parses input and delivers events sequentially to the supplied sink.
     /// </summary>
     /// <param name="input">
-    /// The caller-owned readable source stream, positioned where parsing
-    /// should begin. The parser leaves the stream open.
+    /// The caller-owned prepared document. The parser borrows its read views
+    /// and must not dispose the document owner.
     /// </param>
     /// <param name="sink">
     /// The receiver of parsing events.
@@ -25,11 +25,12 @@ public interface IParser
     /// A task representing the parsing operation.
     /// </returns>
     /// <remarks>
-    /// Sink failures propogate to the caller and stop parsing.
+    /// Each invocation opens its own view at document offset zero.
+    /// Sink failures propagate to the caller and stop parsing.
     /// Events already delivered are not rolled back if parsing fails.
     /// </remarks>
     Task ParseAsync(
-        Stream input,
+        DocumentInput input,
         IParseEventSink sink,
         CancellationToken cancellationToken = default);
 }

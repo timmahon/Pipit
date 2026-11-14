@@ -1,4 +1,4 @@
-﻿using Pipit.Parsers.Html;
+using Pipit.Parsers.Html;
 using Pipit.Rendering;
 using Markdig;
 using System.Text;
@@ -185,17 +185,17 @@ public sealed class MarkdownSinkTests
 
     [Theory]
     [InlineData(ContentKind.Emphasis, "", "")]
-    [InlineData(ContentKind.Emphasis, "   ", "   ")]
+    [InlineData(ContentKind.Emphasis, "   ", "")]
     [InlineData(
         ContentKind.Emphasis,
         " important ",
-        " *important* ")]
+        "*important*")]
     [InlineData(ContentKind.StrongEmphasis, "", "")]
     [InlineData(
         ContentKind.StrongEmphasis,
         " important ",
-        " **important** ")]
-    public async Task KeepsWhitespaceOutsideEmphasis(
+        "**important**")]
+    public async Task TrimsBlockEdgeWhitespaceAroundEmphasis(
     ContentKind kind,
     string text,
     string expected)
@@ -411,11 +411,12 @@ public sealed class MarkdownSinkTests
     {
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         IParser parser = new HtmlParser();
         var sink = new MarkdownSink();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         var renderedHtml = Markdig.Markdown
             .ToHtml(sink.GetContent(), new MarkdownPipelineBuilder().DisableHtml().Build())
@@ -429,9 +430,10 @@ public sealed class MarkdownSinkTests
     {
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(
             "<p><em>one</em><em>two</em></p>"));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
         var sink = new MarkdownSink();
 
-        await new HtmlParser().ParseAsync(input, sink);
+        await new HtmlParser().ParseAsync(documentInput, sink);
 
         Assert.Equal("*onetwo*", sink.GetContent());
     }
@@ -446,9 +448,10 @@ public sealed class MarkdownSinkTests
     public async Task NormalizesBreaksWithoutInlineHtml(string html, string expectedHtml)
     {
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
         var sink = new MarkdownSink();
 
-        await new HtmlParser().ParseAsync(input, sink);
+        await new HtmlParser().ParseAsync(documentInput, sink);
 
         var markdown = sink.GetContent();
         Assert.DoesNotContain("<", markdown);
@@ -465,18 +468,18 @@ public sealed class MarkdownSinkTests
         await sink.WriteAsync(new StartElement(ContentKind.Emphasis));
         await sink.WriteAsync(new TextContent(" Hello "));
 
-        Assert.Equal(" Hello ", sink.GetContent());
+        Assert.Equal("Hello", sink.GetContent());
 
         await sink.WriteAsync(new EndElement(ContentKind.Emphasis));
-        Assert.Equal(" *Hello* ", sink.GetContent());
+        Assert.Equal("*Hello*", sink.GetContent());
 
         await sink.WriteAsync(new TextContent("world"));
         await sink.WriteAsync(new EndElement(ContentKind.Paragraph));
-        Assert.Equal(" *Hello* world", sink.GetContent());
+        Assert.Equal("*Hello* world", sink.GetContent());
     }
 
     [Fact]
-    public async Task RejectsBlockBoundaryInsideOpenInlineElementWithoutLosingText()
+    public async Task ReopensInlineFormattingAfterBlockBoundary()
     {
         var sink = new MarkdownSink();
 
@@ -484,12 +487,62 @@ public sealed class MarkdownSinkTests
         await sink.WriteAsync(new StartElement(ContentKind.Emphasis));
         await sink.WriteAsync(new TextContent("word"));
 
-        await Assert.ThrowsAsync<InvalidDataException>(
-            async () => await sink.WriteAsync(new EndElement(ContentKind.Paragraph)));
+        await sink.WriteAsync(new EndElement(ContentKind.Paragraph));
+        await sink.WriteAsync(new StartElement(ContentKind.Paragraph));
+        await sink.WriteAsync(new TextContent("next"));
 
         await sink.WriteAsync(new EndElement(ContentKind.Emphasis));
         await sink.WriteAsync(new EndElement(ContentKind.Paragraph));
-        Assert.Equal("*word*", sink.GetContent());
+        Assert.Equal("*word*\n\n*next*", sink.GetContent());
+    }
+
+    [Theory]
+    [InlineData("<em>before<div>inside</div>after</em>", "*before*\n\n*inside*\n\n*after*")]
+    [InlineData("<strong><em>before<div>inside</div>after</em></strong>", "***before***\n\n***inside***\n\n***after***")]
+    [InlineData("<em><div></div><div>inside</div></em>", "*inside*")]
+    [InlineData("<em>before<h1>heading</h1>after</em>", "*before*\n\n# *heading*\n\n*after*")]
+    [InlineData("<h1></h1><p>Body</p>", "Body")]
+    [InlineData("<h1> \t\n </h1>", "")]
+    [InlineData("<h1><em> </em><br></h1><p>Body</p>", "Body")]
+    public async Task HandlesFormattingAcrossBlocksAndEmptyHeadings(string html, string expected)
+    {
+        using var source = new MemoryStream(Encoding.UTF8.GetBytes(html));
+        await using var input = await DocumentInput.CreateAsync(source);
+        var sink = new MarkdownSink();
+
+        await new HtmlParser().ParseAsync(input, sink);
+
+        Assert.Equal(expected, sink.GetContent());
+    }
+
+    [Theory]
+    [InlineData("section")]
+    [InlineData("article")]
+    [InlineData("main")]
+    [InlineData("header")]
+    [InlineData("footer")]
+    [InlineData("nav")]
+    [InlineData("aside")]
+    [InlineData("blockquote")]
+    [InlineData("address")]
+    [InlineData("figure")]
+    [InlineData("figcaption")]
+    [InlineData("ul")]
+    [InlineData("ol")]
+    [InlineData("li")]
+    [InlineData("dl")]
+    [InlineData("dt")]
+    [InlineData("dd")]
+    public async Task PreservesStructuralHtmlBoundaries(string element)
+    {
+        var html = $"<{element}>First</{element}><{element}>Second</{element}>";
+        using var source = new MemoryStream(Encoding.UTF8.GetBytes(html));
+        await using var input = await DocumentInput.CreateAsync(source);
+        var sink = new MarkdownSink();
+
+        await new HtmlParser().ParseAsync(input, sink);
+
+        Assert.Equal("First\n\nSecond", sink.GetContent());
     }
 
     [Theory]
@@ -503,13 +556,49 @@ public sealed class MarkdownSinkTests
     public async Task NestedStylesDoNotIntroduceVisibleDelimiterCharacters(string html, string expectedText)
     {
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
         var sink = new MarkdownSink();
-        await new HtmlParser().ParseAsync(input, sink);
+        await new HtmlParser().ParseAsync(documentInput, sink);
 
         var rendered = Markdig.Markdown.ToHtml(
             sink.GetContent(), new MarkdownPipelineBuilder().DisableHtml().Build());
         using var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(rendered);
 
         Assert.Equal(expectedText, document.Body!.TextContent.Trim());
+    }
+
+    [Theory]
+    [InlineData("<p>    ordinary text</p>", "ordinary text")]
+    [InlineData("<p> Hello \t\r\n world </p>", "Hello world")]
+    [InlineData("<h1>Title</h1>\n    <p>Body</p>", "# Title\n\nBody")]
+    [InlineData("<p>A <strong> B </strong> C</p>", "A **B** C")]
+    [InlineData("<p>A \n <br> \n B</p>", "A\\\nB")]
+    [InlineData("<p>A&nbsp;&nbsp;B</p>", "A\u00a0\u00a0B")]
+    [InlineData("<p>&nbsp;<br>B</p>", "\u00a0\\\nB")]
+    public async Task NormalizesFlowWhitespaceWithoutCreatingCodeBlocks(string html, string expected)
+    {
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
+        var sink = new MarkdownSink();
+        await new HtmlParser().ParseAsync(documentInput, sink);
+
+        var markdown = sink.GetContent();
+        var interpreted = Markdig.Markdown.ToHtml(
+            markdown, new MarkdownPipelineBuilder().DisableHtml().Build());
+
+        Assert.Equal(expected, markdown);
+        Assert.DoesNotContain("<pre>", interpreted);
+    }
+
+    [Fact]
+    public async Task CollapsesWhitespaceAcrossTextFragments()
+    {
+        var sink = new MarkdownSink();
+
+        await sink.WriteAsync(new TextContent("A \t"));
+        await sink.WriteAsync(new TextContent("\n"));
+        await sink.WriteAsync(new TextContent(" \r B"));
+
+        Assert.Equal("A B", sink.GetContent());
     }
 }

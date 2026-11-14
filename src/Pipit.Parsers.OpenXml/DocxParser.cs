@@ -10,7 +10,7 @@ public sealed class DocxParser : IParser
 {
     /// <inheritdoc />
     public async Task ParseAsync(
-        Stream input,
+        DocumentInput input,
         IParseEventSink sink,
         CancellationToken cancellationToken = default)
     {
@@ -18,8 +18,9 @@ public sealed class DocxParser : IParser
         ArgumentNullException.ThrowIfNull(sink);
         cancellationToken.ThrowIfCancellationRequested();
 
+        using var content = input.OpenRead();
         using var document = WordprocessingDocument.Open(
-            input,
+            content,
             isEditable: false);
 
         var mainPart = document.MainDocumentPart

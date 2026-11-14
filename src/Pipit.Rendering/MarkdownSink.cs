@@ -10,10 +10,14 @@ namespace Pipit.Rendering;
 /// Equivalent adjacent emphasis is merged. Formatting that cannot be represented
 /// safely is omitted without removing its text. Leading and trailing explicit
 /// line breaks are omitted, and consecutive breaks are collapsed.
+/// Ordinary spaces, tabs and newlines collapse within blocks and are trimmed at
+/// block edges. Non-breaking spaces and explicit line-break events are retained.
+/// Inline formatting that spans a block boundary is closed and reopened in each block.
 /// </remarks>
 public sealed class MarkdownSink : IParseEventSink
 {
     private readonly StringBuilder _completed = new();
+    private readonly List<SourceMapping> _completedMappings = [];
     private readonly List<MarkdownInline> _current = [];
     private readonly Stack<MarkdownEmphasis> _inlineElements = new();
     private int? _headingLevel;
@@ -52,7 +56,7 @@ public sealed class MarkdownSink : IParseEventSink
 
             case TextContent text when text.Text.Length > 0:
                 CurrentChildren.Add(new MarkdownText(text, 0, text.Text.Length));
-                _hasLineText |= text.Text.Any(character => !char.IsWhiteSpace(character));
+                _hasLineText |= text.Text.Any(character => !MarkdownInlineWriter.IsFlowWhitespace(character));
                 break;
 
             case TextContent:
@@ -96,11 +100,18 @@ public sealed class MarkdownSink : IParseEventSink
     /// Gets the Markdown produced by the events received so far.
     /// </summary>
     /// <returns>The rendered Markdown.</returns>
-    public string GetContent()
+    public string GetContent() => GetResult().Content;
+
+    /// <summary>
+    /// Gets a snapshot of the rendered Markdown and its source mappings.
+    /// </summary>
+    /// <returns>The rendered content and source evidence received so far.</returns>
+    public RenderedContent GetResult()
     {
         var content = new StringBuilder().Append(_completed);
-        AppendBlock(content, MarkdownInlineWriter.Write(_current, _headingLevel));
-        return content.ToString();
+        var mappings = new List<SourceMapping>(_completedMappings);
+        AppendBlock(content, mappings, MarkdownInlineWriter.Write(_current, _headingLevel));
+        return new RenderedContent(content.ToString(), mappings.AsReadOnly());
     }
 
     private List<MarkdownInline> CurrentChildren =>
@@ -108,21 +119,38 @@ public sealed class MarkdownSink : IParseEventSink
 
     private void CompleteBlock()
     {
-        if (_inlineElements.Count > 0)
-        {
-            throw new InvalidDataException(
-                "Inline content elements must close before a block boundary.");
-        }
+        var activeKinds = _inlineElements.Reverse().Select(element => element.Kind).ToArray();
+        foreach (var element in _inlineElements) element.IsClosed = true;
 
-        AppendBlock(_completed, MarkdownInlineWriter.Write(_current, _headingLevel));
+        AppendBlock(_completed, _completedMappings, MarkdownInlineWriter.Write(_current, _headingLevel));
         _current.Clear();
+        _inlineElements.Clear();
         _hasLineText = false;
+
+        foreach (var kind in activeKinds)
+        {
+            var emphasis = new MarkdownEmphasis(kind, []);
+            CurrentChildren.Add(emphasis);
+            _inlineElements.Push(emphasis);
+        }
     }
 
-    private static void AppendBlock(StringBuilder content, string block)
+    private static void AppendBlock(
+        StringBuilder content,
+        List<SourceMapping> mappings,
+        RenderedContent block)
     {
-        if (block.Length == 0) return;
+        if (block.Content.Length == 0) return;
         if (content.Length > 0) content.Append("\n\n");
-        content.Append(block);
+        var offset = content.Length;
+        content.Append(block.Content);
+
+        foreach (var mapping in block.SourceMappings)
+        {
+            mappings.Add(mapping with
+            {
+                OutputRange = new TextRange(checked(offset + mapping.OutputRange.Start), mapping.OutputRange.Length)
+            });
+        }
     }
 }

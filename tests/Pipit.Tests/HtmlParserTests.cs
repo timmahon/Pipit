@@ -1,4 +1,4 @@
-﻿using Pipit.Parsers.Html;
+using Pipit.Parsers.Html;
 using System.Text;
 
 namespace Pipit.Tests;
@@ -14,11 +14,12 @@ public sealed class HtmlParserTests
     {
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         var titles = sink.Events
             .OfType<ExtractedMetadata<string>>()
@@ -40,11 +41,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         ParseEvent[] expected =
         [
@@ -71,11 +73,12 @@ public sealed class HtmlParserTests
     {
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes("<h2>Introduction</h2>"));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         ParseEvent[] expected =
         [
@@ -100,11 +103,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         ParseEvent[] expected =
         [
@@ -135,11 +139,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         Assert.Empty(sink.Events);
     }
@@ -151,11 +156,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         ParseEvent[] expected =
         [
@@ -180,11 +186,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         ParseEvent[] expected =
         [
@@ -208,11 +215,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         TextContent[] expected =
         [
@@ -236,11 +244,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         TextContent[] expected =
         [
@@ -262,11 +271,12 @@ public sealed class HtmlParserTests
     {
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes("<p>Hello</p>"));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         Assert.True(input.CanRead);
     }
@@ -276,6 +286,7 @@ public sealed class HtmlParserTests
     {
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes("<p>Hello</p>"));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
@@ -284,10 +295,10 @@ public sealed class HtmlParserTests
         IParser parser = new HtmlParser();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => parser.ParseAsync(input, sink, cancellation.Token));
+            () => parser.ParseAsync(documentInput, sink, cancellation.Token));
 
         Assert.Empty(sink.Events);
-        Assert.Equal(0L, input.Position);
+        Assert.Equal(input.Length, input.Position);
     }
 
     [Fact]
@@ -295,6 +306,7 @@ public sealed class HtmlParserTests
     {
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes("<p>Hello</p><p>World</p>"));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         using var cancellation = new CancellationTokenSource();
         var events = new List<ParseEvent>();
@@ -310,7 +322,7 @@ public sealed class HtmlParserTests
         IParser parser = new HtmlParser();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => parser.ParseAsync(input, sink, cancellation.Token));
+            () => parser.ParseAsync(documentInput, sink, cancellation.Token));
 
         var firstEvent = Assert.Single(events);
 
@@ -324,6 +336,7 @@ public sealed class HtmlParserTests
     {
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes("<p>Hello</p><p>World</p>"));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var failure = new InvalidOperationException("Sink failed.");
         var attempts = 0;
@@ -337,7 +350,7 @@ public sealed class HtmlParserTests
         IParser parser = new HtmlParser();
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => parser.ParseAsync(input, sink));
+            () => parser.ParseAsync(documentInput, sink));
 
         Assert.Same(failure, actual);
         Assert.Equal(1, attempts);
@@ -352,11 +365,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         ParseEvent[] expected =
         [
@@ -392,11 +406,12 @@ public sealed class HtmlParserTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         var sink = new RecordingParseEventSink();
         IParser parser = new HtmlParser();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         ParseEvent[] expected =
         [

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Pipit.Parsers.Html;
 using Pipit.Parsers.OpenXml;
 using Pipit.Rendering;
@@ -20,11 +20,12 @@ public sealed class ParserRenderingTests
 
         using var input = new MemoryStream(
             Encoding.UTF8.GetBytes(html));
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         IParser parser = new HtmlParser();
         var sink = new MarkdownSink();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         Assert.Equal(
             "# Introduction\n\nHello **world**.\n\nSecond paragraph.",
@@ -40,11 +41,12 @@ public sealed class ParserRenderingTests
             "basic.docx");
 
         using var input = File.OpenRead(path);
+        await using var documentInput = await DocumentInput.CreateAsync(input);
 
         IParser parser = new DocxParser();
         var sink = new MarkdownSink();
 
-        await parser.ParseAsync(input, sink);
+        await parser.ParseAsync(documentInput, sink);
 
         Assert.Equal(
             "Example document\n\nFirst paragraph.\n\nSecond paragraph.",

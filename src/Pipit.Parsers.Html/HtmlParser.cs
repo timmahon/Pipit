@@ -11,14 +11,14 @@ public sealed class HtmlParser : IParser
     /// <summary>
     /// Parses HTML and sends content events to a sink.
     /// </summary>
-    /// <param name="input">The readable HTML stream.</param>
+    /// <param name="input">The caller-owned prepared HTML document.</param>
     /// <param name="sink">The receiver of parsed content events.</param>
     /// <param name="cancellationToken">
     /// A token used to cancel parsing.
     /// </param>
     /// <returns>A task representing parsing.</returns>
     public async Task ParseAsync(
-        Stream input,
+        DocumentInput input,
         IParseEventSink sink,
         CancellationToken cancellationToken = default)
     {
@@ -26,10 +26,11 @@ public sealed class HtmlParser : IParser
         ArgumentNullException.ThrowIfNull(sink);
         cancellationToken.ThrowIfCancellationRequested();
 
+        using var content = input.OpenRead();
         var parser = new AngleSharpHtmlParser();
 
         using var document = await parser.ParseDocumentAsync(
-            input,
+            content,
             cancellationToken);
 
         var seenIds = new HashSet<string>(StringComparer.Ordinal);
@@ -108,7 +109,9 @@ public sealed class HtmlParser : IParser
 
             ContentKind? kind = name switch
             {
-                "div" => ContentKind.Block,
+                "div" or "section" or "article" or "main" or "header" or "footer" or
+                "nav" or "aside" or "blockquote" or "address" or "figure" or "figcaption" or
+                "ul" or "ol" or "li" or "dl" or "dt" or "dd" => ContentKind.Block,
                 "p" => ContentKind.Paragraph,
                 "strong" => ContentKind.StrongEmphasis,
                 "em" => ContentKind.Emphasis,
