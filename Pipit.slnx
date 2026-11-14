@@ -13,6 +13,7 @@
     <Project Path="src/Pipit.Abstractions/Pipit.Abstractions.csproj" />
     <Project Path="src/Pipit.Parsers.Html/Pipit.Parsers.Html.csproj" />
     <Project Path="src/Pipit.Parsers.OpenXml/Pipit.Parsers.OpenXml.csproj" />
+    <Project Path="src/Pipit.Rendering/Pipit.Rendering.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Pipit.Tests/Pipit.Tests.csproj" />

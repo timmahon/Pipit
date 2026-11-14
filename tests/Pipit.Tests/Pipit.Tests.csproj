@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
@@ -17,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Pipit.Parsers.OpenXml\Pipit.Parsers.OpenXml.csproj" />
     <ProjectReference Include="..\..\src\Pipit.Parsers.Html\Pipit.Parsers.Html.csproj" />
+    <ProjectReference Include="..\..\src\Pipit.Rendering\Pipit.Rendering.csproj" />
   </ItemGroup>
 
   <ItemGroup>
