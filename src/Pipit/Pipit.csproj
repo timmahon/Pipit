@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="AngleSharp" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
   </ItemGroup>
 </Project>

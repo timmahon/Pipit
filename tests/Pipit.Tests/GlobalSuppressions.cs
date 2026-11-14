@@ -11,3 +11,10 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "Exercises the public IParser contract intentionally.", 
     Scope = "type", 
     Target = "~T:Pipit.Tests.HtmlParserTests")]
+[assembly: SuppressMessage(
+    "Performance",
+    "CA1859:Use concrete types when possible for improved performance",
+    Justification = "Exercises the public IParser contract intentionally.",
+    Scope = "type",
+    Target = "~T:Pipit.Tests.DocxParserTests")]
+
