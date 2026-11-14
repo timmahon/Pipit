@@ -1,4 +1,4 @@
-﻿namespace Pipit;
+﻿namespace Pipit.Parsers.Html;
 
 /// <summary>
 /// Identifies a text range within an element in the captured HTML.

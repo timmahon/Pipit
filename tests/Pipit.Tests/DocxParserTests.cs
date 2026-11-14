@@ -1,4 +1,6 @@
-﻿namespace Pipit.Tests;
+﻿using Pipit.Parsers.OpenXml;
+
+namespace Pipit.Tests;
 
 public sealed class DocxParserTests
 {

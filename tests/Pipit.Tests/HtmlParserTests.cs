@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using Pipit.Parsers.Html;
+using System.Text;
 
 namespace Pipit.Tests;
 

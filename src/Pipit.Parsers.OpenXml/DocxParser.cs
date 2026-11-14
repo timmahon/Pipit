@@ -1,7 +1,7 @@
 ﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
-namespace Pipit;
+namespace Pipit.Parsers.OpenXml;
 
 /// <summary>
 /// Parses Word Open XML documents into metadata and content events.

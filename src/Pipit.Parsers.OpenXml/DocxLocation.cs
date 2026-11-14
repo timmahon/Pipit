@@ -1,4 +1,4 @@
-﻿namespace Pipit;
+﻿namespace Pipit.Parsers.OpenXml;
 
 /// <summary>
 /// Identifies a text range within a top-level DOCX body paragraph.

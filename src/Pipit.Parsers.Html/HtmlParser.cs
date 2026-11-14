@@ -1,7 +1,7 @@
 ﻿using AngleSharp.Dom;
 using AngleSharpHtmlParser = AngleSharp.Html.Parser.HtmlParser;
 
-namespace Pipit;
+namespace Pipit.Parsers.Html;
 
 /// <summary>
 /// Parses HTML documents to extract their content and metadata.
